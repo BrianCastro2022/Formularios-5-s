@@ -26,7 +26,7 @@ class DashboardController extends Controller
      * Almacén, 85% Taller/Administrativo) — como valor general se deja
      * configurable desde el filtro del dashboard con este default.
      */
-    private const META_DEFAULT = 80.0;
+    private const META_DEFAULT = 90.0;
 
     /**
      * Segundos que se cachea una combinación de filtros (HU-30, nota de

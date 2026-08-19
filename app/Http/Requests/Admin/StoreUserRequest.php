@@ -25,6 +25,10 @@ class StoreUserRequest extends FormRequest
             'apellidos' => ['required', 'string', 'max:255'],
             'tipo_identificacion' => ['required', Rule::in(['CC', 'CE', 'TI', 'PPT', 'Pasaporte'])],
             'numero_identificacion' => ['required', 'string', 'max:50', 'unique:users,numero_identificacion'],
+            'email' => [
+                'nullable', 'email', 'max:255', 'unique:users,email',
+                'required_if:rol,'.UserRole::Responsable->value,
+            ],
             'rol' => ['required', Rule::enum(UserRole::class)],
             'area_id' => ['nullable', 'required_if:rol,'.UserRole::Responsable->value, 'exists:areas,id'],
         ];

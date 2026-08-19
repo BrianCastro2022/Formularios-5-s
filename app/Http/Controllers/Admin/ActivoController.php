@@ -15,7 +15,7 @@ use Inertia\Response;
 class ActivoController extends Controller
 {
     /**
-     * HU-10/HU-11 — Listar y buscar placas de camiones y unidades de montacargas.
+     * HU-10/HU-11 — Listar y buscar activos (placas, montacargas y zonas).
      */
     public function index(Request $request): Response
     {
@@ -41,15 +41,14 @@ class ActivoController extends Controller
     }
 
     /**
-     * HU-10/HU-11 — Registrar una nueva placa o unidad de montacargas.
-     * El área se deriva del tipo: Camión → área Camiones, Montacargas → área Montacargas.
+     * HU-10/HU-11 — Registrar un nuevo activo (placa, montacargas o zona). El área
+     * se deriva del tipo mediante ActivoTipo::areaNombre().
      */
     public function store(StoreActivoRequest $request): RedirectResponse
     {
         $validated = $request->validated();
 
-        $areaNombre = ActivoTipo::from($validated['tipo']) === ActivoTipo::Camion ? 'Camiones' : 'Montacargas';
-        $area = Area::query()->where('nombre', $areaNombre)->firstOrFail();
+        $area = Area::query()->where('nombre', ActivoTipo::from($validated['tipo'])->areaNombre())->firstOrFail();
 
         Activo::create([
             ...$validated,

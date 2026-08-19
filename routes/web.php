@@ -1,10 +1,19 @@
 <?php
 
+use App\Enums\UserRole;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
-// Sistema interno sin landing pública: '/' redirige a login o al dashboard.
+// '/' muestra la página de bienvenida a visitantes; a un usuario ya
+// autenticado lo manda directo a la vista de inicio de su rol.
 Route::get('/', function () {
-    return redirect()->route(auth()->check() ? 'dashboard' : 'login');
+    if (! auth()->check()) {
+        return Inertia::render('welcome');
+    }
+
+    $home = auth()->user()->rol === UserRole::Responsable ? 'formulario.show' : 'dashboard';
+
+    return redirect()->route($home);
 })->name('home');
 
 require __DIR__.'/dashboard.php';

@@ -27,6 +27,11 @@ class UpdateUserRequest extends FormRequest
                 'required', 'string', 'max:50',
                 Rule::unique('users', 'numero_identificacion')->ignore($this->route('user')),
             ],
+            'email' => [
+                'nullable', 'email', 'max:255',
+                Rule::unique('users', 'email')->ignore($this->route('user')),
+                'required_if:rol,'.UserRole::Responsable->value,
+            ],
             'rol' => ['required', Rule::enum(UserRole::class)],
             'area_id' => ['nullable', 'required_if:rol,'.UserRole::Responsable->value, 'exists:areas,id'],
         ];

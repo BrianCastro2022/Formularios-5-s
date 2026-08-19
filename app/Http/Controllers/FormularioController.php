@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\AdherenciaCalculator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -20,15 +21,15 @@ use Inertia\Response;
 class FormularioController extends Controller
 {
     /**
-     * Áreas cuyo checklist se diligencia por activo individual (HU-14),
-     * no una sola vez por área.
+     * Áreas cuyo checklist se diligencia por activo individual (HU-14) — placa,
+     * montacargas o zona —, no una sola vez por área.
      */
-    private const AREAS_POR_ACTIVO = ['Camiones', 'Montacargas'];
+    private const AREAS_POR_ACTIVO = ['Camiones', 'Montacargas', 'Almacén', 'Administrativo'];
 
     /**
      * HU-14 — Muestra el formulario 5S del área del responsable. Si el área
-     * requiere elegir placa/activo primero (Camiones, Montacargas) y aún no se
-     * eligió, muestra la pantalla de selección en vez del formulario.
+     * requiere elegir placa/activo primero y aún no se eligió, muestra la
+     * pantalla de selección en vez del formulario.
      */
     public function show(Request $request): Response
     {
@@ -39,13 +40,16 @@ class FormularioController extends Controller
         $requiereActivo = in_array($checklist->area->nombre, self::AREAS_POR_ACTIVO, true);
 
         if ($requiereActivo && ! $request->filled('activo_id')) {
+            $activos = Activo::query()
+                ->where('area_id', $user->area_id)
+                ->where('activo', true)
+                ->orderBy('codigo')
+                ->get(['id', 'codigo']);
+
             return Inertia::render('formulario/seleccionar-placa', [
                 'checklist' => $checklist,
-                'activos' => Activo::query()
-                    ->where('area_id', $user->area_id)
-                    ->where('activo', true)
-                    ->orderBy('codigo')
-                    ->get(['id', 'codigo']),
+                'activos' => $activos,
+                'completadosEstaSemana' => $this->activosCompletadosEstaSemana($checklist->id, $activos->pluck('id')),
             ]);
         }
 
@@ -67,7 +71,7 @@ class FormularioController extends Controller
         return Inertia::render('formulario/diligenciar', [
             'checklist' => $checklist,
             'activo' => $activo,
-            'yaDiligenciadoEstePeriodo' => $this->yaDiligenciadoEstePeriodo($checklist->id, $user->id, $activo?->id),
+            'bloqueadoPorSemana' => $this->yaDiligenciadoEstaSemana($checklist->id, $activo?->id),
         ]);
     }
 
@@ -85,6 +89,20 @@ class FormularioController extends Controller
 
         if ($requiereActivo && ! $validated['activo_id']) {
             throw ValidationException::withMessages(['activo_id' => 'Debes elegir una placa/activo.']);
+        }
+
+        $activoId = $requiereActivo ? (int) $validated['activo_id'] : null;
+
+        // Regla de negocio: cada checklist (por activo, si aplica) solo se puede
+        // diligenciar una vez por semana, sin importar qué usuario lo haga — si
+        // cualquier otro responsable ya lo diligenció esta semana, queda bloqueado
+        // para todos los demás. Repetido aquí como defensa en profundidad aunque
+        // la pantalla de diligenciamiento ya bloquea este caso antes de mostrar
+        // el formulario.
+        if ($this->yaDiligenciadoEstaSemana($checklist->id, $activoId)) {
+            throw ValidationException::withMessages([
+                'respuestas' => 'Ya diligenciaste este formulario esta semana. Podrás volver a intentarlo la próxima semana.',
+            ]);
         }
 
         // HU-15: todas las preguntas activas del checklist son obligatorias (no hay borrador).
@@ -125,6 +143,12 @@ class FormularioController extends Controller
             $respuesta->update([
                 'resultado_porcentaje' => app(AdherenciaCalculator::class)->calcular($respuesta),
             ]);
+
+            // Reinicia el ciclo del recordatorio por correo (EnviarRecordatoriosChecklist)
+            // para que no le vuelva a llegar hasta que pase otra semana sin diligenciar.
+            if ($user->recordatorio_enviado_at !== null) {
+                $user->update(['recordatorio_enviado_at' => null]);
+            }
 
             return $respuesta;
         });
@@ -178,17 +202,39 @@ class FormularioController extends Controller
     }
 
     /**
-     * HU-18 — Advertencia (no bloqueante) si ya se diligenció este checklist/activo
-     * en el mes en curso.
+     * HU-18 (revisada) — Un checklist (por activo, si el área lo requiere) solo se
+     * puede diligenciar una vez por semana calendario (lunes a domingo), sin
+     * importar qué usuario lo diligencie: el bloqueo es por combinación
+     * checklist+activo (o checklist+área, si no aplica activo), compartido entre
+     * todos los responsables del área — no es un bloqueo individual por usuario.
+     * A diferencia de la versión original de la Fase 4, esto bloquea el envío en
+     * vez de solo advertir.
      */
-    private function yaDiligenciadoEstePeriodo(int $checklistPlantillaId, int $usuarioId, ?int $activoId): bool
+    private function yaDiligenciadoEstaSemana(int $checklistPlantillaId, ?int $activoId): bool
     {
         return ChecklistRespuesta::query()
             ->where('checklist_plantilla_id', $checklistPlantillaId)
-            ->where('usuario_id', $usuarioId)
             ->when($activoId, fn ($query) => $query->where('activo_id', $activoId), fn ($query) => $query->whereNull('activo_id'))
-            ->whereMonth('fecha', now()->month)
-            ->whereYear('fecha', now()->year)
+            ->whereBetween('fecha', [now()->startOfWeek(), now()->endOfWeek()])
             ->exists();
+    }
+
+    /**
+     * IDs de los activos, entre los recibidos, que cualquier usuario ya diligenció
+     * esta semana para este checklist — usados en la pantalla de selección para
+     * marcarlos como completados en vez de dejar que el usuario llegue a un
+     * formulario bloqueado.
+     *
+     * @param  Collection<int, int>  $activoIds
+     * @return array<int, int>
+     */
+    private function activosCompletadosEstaSemana(int $checklistPlantillaId, Collection $activoIds): array
+    {
+        return ChecklistRespuesta::query()
+            ->where('checklist_plantilla_id', $checklistPlantillaId)
+            ->whereIn('activo_id', $activoIds)
+            ->whereBetween('fecha', [now()->startOfWeek(), now()->endOfWeek()])
+            ->pluck('activo_id')
+            ->all();
     }
 }

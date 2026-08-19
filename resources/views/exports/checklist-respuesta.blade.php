@@ -15,6 +15,7 @@
         .meta .label { color: #666; width: 140px; }
         .resultado { font-size: 16px; font-weight: bold; }
         .observacion { color: #555; font-style: italic; }
+        .evidencia { max-width: 90px; max-height: 90px; }
     </style>
 </head>
 <body>
@@ -34,9 +35,10 @@
         <h2>{{ $nombreSeccion }}</h2>
         <table>
             <tr>
-                <th style="width: 40%">Pregunta</th>
-                <th style="width: 15%">Respuesta</th>
-                <th style="width: 45%">Observación</th>
+                <th style="width: 32%">Pregunta</th>
+                <th style="width: 13%">Respuesta</th>
+                <th style="width: 35%">Observación</th>
+                <th style="width: 20%">Evidencia</th>
             </tr>
             @foreach ($respuestas as $detalle)
                 <tr>
@@ -48,6 +50,13 @@
                     </td>
                     <td>{{ $detalle->opcion->texto_opcion }}</td>
                     <td class="observacion">{{ $detalle->observacion ?? '—' }}</td>
+                    <td>
+                        @if ($detalle->foto_path)
+                            <img class="evidencia" src="{{ $detalle->foto_path }}" alt="Evidencia">
+                        @else
+                            —
+                        @endif
+                    </td>
                 </tr>
             @endforeach
         </table>

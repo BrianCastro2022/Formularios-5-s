@@ -38,11 +38,16 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('password.change.edit');
         }
 
+        // No se usa redirect()->intended(): la URL "intended" queda en la sesión
+        // desde el intento de acceso de CUALQUIER visitante anterior (incluso de
+        // otro usuario/rol) y, si sobrevive hasta este login, mandaba al usuario
+        // recién autenticado a una ruta de un rol distinto al suyo (403 intermitente
+        // que se "arreglaba" con F5 porque la siguiente navegación ya no la usaba).
         if ($user->rol === UserRole::Responsable) {
-            return redirect()->intended(route('formulario.show', absolute: false));
+            return redirect()->route('formulario.show');
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->route('dashboard');
     }
 
     /**

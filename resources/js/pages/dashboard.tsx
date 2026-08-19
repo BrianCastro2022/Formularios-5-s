@@ -23,15 +23,27 @@ import {
     Tooltip,
     type ChartOptions,
 } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
 import { FileSpreadsheet, FileText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, Line, Radar } from 'react-chartjs-2';
 
-ChartJS.register(CategoryScale, LinearScale, RadialLinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    RadialLinearScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip,
+    Legend,
+    annotationPlugin,
+);
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
-const AREAS_CON_PLACA = ['Camiones', 'Montacargas'];
+const AREAS_CON_ACTIVO = ['Camiones', 'Montacargas', 'Almacén', 'Administrativo'];
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -82,11 +94,11 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
     const [loading, setLoading] = useState(true);
 
     const areaSeleccionada = areas.find((a) => String(a.id) === areaId);
-    const requierePlaca = areaSeleccionada ? AREAS_CON_PLACA.includes(areaSeleccionada.nombre) : false;
+    const requiereActivo = areaSeleccionada ? AREAS_CON_ACTIVO.includes(areaSeleccionada.nombre) : false;
     const activosDelArea = useMemo(() => activos.filter((a) => String(a.area_id) === areaId), [activos, areaId]);
 
     useEffect(() => {
-        if (!requierePlaca && activoId !== 'todos') {
+        if (!requiereActivo && activoId !== 'todos') {
             setActivoId('todos');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,16 +121,46 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
             .finally(() => setLoading(false));
     }, [mes, anio, areaId, activoId, meta]);
 
+    // Línea de meta (HU-22), comparable contra el % de adherencia en todos los
+    // gráficos que manejan porcentaje — no aplica al de "Top oportunidades", que
+    // cuenta GAPs, no adherencia.
+    const metaAnnotation = (axis: 'x' | 'y') => ({
+        metaLine: {
+            type: 'line' as const,
+            [`${axis}Min`]: meta,
+            [`${axis}Max`]: meta,
+            borderColor: '#E6271A',
+            borderWidth: 2,
+            borderDash: [6, 6],
+            label: {
+                display: true,
+                content: `Meta ${meta}%`,
+                position: 'end' as const,
+                backgroundColor: '#E6271A',
+                color: '#fff',
+                font: { size: 10 },
+            },
+        },
+    });
+
     const barOptions: ChartOptions<'bar'> = {
         responsive: true,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.formattedValue}%` } } },
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `${ctx.formattedValue}%` } },
+            annotation: { annotations: metaAnnotation('y') },
+        },
         scales: { y: { min: 0, max: 100, ticks: { callback: (v) => `${v}%` } } },
     };
 
     const barHorizontalOptions: ChartOptions<'bar'> = {
         indexAxis: 'y' as const,
         responsive: true,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.formattedValue}%` } } },
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `${ctx.formattedValue}%` } },
+            annotation: { annotations: metaAnnotation('x') },
+        },
         scales: { x: { min: 0, max: 100, ticks: { callback: (v) => `${v}%` } } },
     };
 
@@ -131,7 +173,10 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
 
     const radarOptions: ChartOptions<'radar'> = {
         responsive: true,
-        plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.formattedValue}%` } } },
+        plugins: {
+            legend: { display: true, position: 'bottom' as const },
+            tooltip: { callbacks: { label: (ctx) => `${ctx.formattedValue}%` } },
+        },
         scales: { r: { min: 0, max: 100, ticks: { stepSize: 20, callback: (v) => `${v}%` } } },
     };
 
@@ -141,31 +186,39 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
             {
                 label: '% adherencia',
                 data: data?.por_s.map((s) => s.porcentaje ?? 0) ?? [],
-                backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                borderColor: '#2563eb',
-                pointBackgroundColor: '#2563eb',
+                backgroundColor: 'rgba(47, 77, 177, 0.2)',
+                borderColor: '#2F4DB1',
+                pointBackgroundColor: '#2F4DB1',
+            },
+            {
+                label: `Meta (${meta}%)`,
+                data: data?.por_s.map(() => meta) ?? [],
+                backgroundColor: 'transparent',
+                borderColor: '#E6271A',
+                borderDash: [6, 6],
+                pointRadius: 0,
             },
         ],
     };
 
     const barDataArea = {
         labels: data?.por_area.map((a) => a.area) ?? [],
-        datasets: [{ label: '% adherencia', data: data?.por_area.map((a) => a.promedio) ?? [], backgroundColor: '#0891b2' }],
+        datasets: [{ label: '% adherencia', data: data?.por_area.map((a) => a.promedio) ?? [], backgroundColor: '#2D8CC3' }],
     };
 
     const barDataSubcategoria = {
         labels: data?.por_subcategoria.map((s) => s.subcategoria) ?? [],
-        datasets: [{ label: '% adherencia', data: data?.por_subcategoria.map((s) => s.promedio ?? 0) ?? [], backgroundColor: '#7c3aed' }],
+        datasets: [{ label: '% adherencia', data: data?.por_subcategoria.map((s) => s.promedio ?? 0) ?? [], backgroundColor: '#2F4DB1' }],
     };
 
     const barDataEvaluador = {
         labels: data?.por_evaluador.map((e) => e.evaluador) ?? [],
-        datasets: [{ label: '% adherencia', data: data?.por_evaluador.map((e) => e.promedio) ?? [], backgroundColor: '#16a34a' }],
+        datasets: [{ label: '% adherencia', data: data?.por_evaluador.map((e) => e.promedio) ?? [], backgroundColor: '#68B143' }],
     };
 
     const barDataOportunidades = {
         labels: data?.top_oportunidades.map((o) => (o.texto.length > 60 ? `${o.texto.slice(0, 60)}…` : o.texto)) ?? [],
-        datasets: [{ label: 'Respuestas GAP', data: data?.top_oportunidades.map((o) => o.gaps) ?? [], backgroundColor: '#dc2626' }],
+        datasets: [{ label: 'Respuestas GAP', data: data?.top_oportunidades.map((o) => o.gaps) ?? [], backgroundColor: '#E6271A' }],
     };
 
     const lineOptions: ChartOptions<'line'> = {
@@ -180,14 +233,14 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
             {
                 label: '% adherencia',
                 data: data?.tendencia_mensual.map((t) => t.promedio) ?? [],
-                borderColor: '#2563eb',
-                backgroundColor: '#2563eb',
+                borderColor: '#2F4DB1',
+                backgroundColor: '#2F4DB1',
                 tension: 0.3,
             },
             {
                 label: 'Meta',
                 data: data?.tendencia_mensual.map(() => meta) ?? [],
-                borderColor: '#dc2626',
+                borderColor: '#E6271A',
                 borderDash: [6, 6],
                 pointRadius: 0,
             },
@@ -284,10 +337,10 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                     </div>
 
                     <div className="grid gap-1.5">
-                        <Label className="text-muted-foreground text-xs">Placa</Label>
-                        <Select value={activoId} onValueChange={setActivoId} disabled={!requierePlaca}>
+                        <Label className="text-muted-foreground text-xs">Activo</Label>
+                        <Select value={activoId} onValueChange={setActivoId} disabled={!requiereActivo}>
                             <SelectTrigger>
-                                <SelectValue placeholder={requierePlaca ? 'Todas' : 'No aplica'} />
+                                <SelectValue placeholder={requiereActivo ? 'Todas' : 'No aplica'} />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="todos">Todas</SelectItem>
@@ -333,7 +386,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-muted-foreground text-sm font-medium">Planes de acción (HU-32)</CardTitle>
+                        <CardTitle className="text-muted-foreground text-sm font-medium">Planes de acción</CardTitle>
                         <p className="text-muted-foreground text-xs">Conteo global, no depende de los filtros de arriba.</p>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-6">
@@ -423,7 +476,11 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                                         <span className="flex-1">
                                             {fila.texto} <span className="text-muted-foreground">({fila.gaps} GAPs)</span>
                                         </span>
-                                        <CrearPlanAccionDialog respuestaDetalleId={fila.ultima_respuesta_detalle_id} responsables={responsables} />
+                                        <CrearPlanAccionDialog
+                                            respuestaDetalleId={fila.ultima_respuesta_detalle_id}
+                                            responsables={responsables}
+                                            gapPregunta={fila.texto}
+                                        />
                                     </div>
                                 ))}
                             </div>
@@ -502,6 +559,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                                             <CrearPlanAccionDialog
                                                 respuestaDetalleId={fila.ultima_respuesta_detalle_id}
                                                 responsables={responsables}
+                                                gapPregunta={fila.texto}
                                             />
                                         </TableCell>
                                     </TableRow>

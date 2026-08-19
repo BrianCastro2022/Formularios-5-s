@@ -43,6 +43,15 @@ export default function HistorialDetalle({ checklist, responsables }: { checklis
                                     <div className="space-y-1">
                                         <p className="text-sm">{detalle.pregunta?.texto}</p>
                                         {detalle.observacion && <p className="text-muted-foreground text-xs italic">"{detalle.observacion}"</p>}
+                                        {detalle.foto_url && (
+                                            <a href={`/storage/${detalle.foto_url}`} target="_blank" rel="noopener noreferrer">
+                                                <img
+                                                    src={`/storage/${detalle.foto_url}`}
+                                                    alt="Evidencia fotográfica"
+                                                    className="mt-1 h-24 w-24 rounded-md border object-cover"
+                                                />
+                                            </a>
+                                        )}
                                         {detalle.planes_accion && detalle.planes_accion.length > 0 && (
                                             <p className="text-muted-foreground text-xs">
                                                 {detalle.planes_accion.length} plan(es) de acción registrado(s).
@@ -52,7 +61,12 @@ export default function HistorialDetalle({ checklist, responsables }: { checklis
                                     <div className="flex shrink-0 items-center gap-2">
                                         <Badge variant={detalle.opcion?.es_gap ? 'destructive' : 'outline'}>{detalle.opcion?.texto_opcion}</Badge>
                                         {detalle.opcion?.es_gap && (
-                                            <CrearPlanAccionDialog respuestaDetalleId={detalle.id} responsables={responsables} />
+                                            <CrearPlanAccionDialog
+                                                respuestaDetalleId={detalle.id}
+                                                responsables={responsables}
+                                                gapPregunta={detalle.pregunta?.texto ?? ''}
+                                                gapOpcion={detalle.opcion?.texto_opcion}
+                                            />
                                         )}
                                     </div>
                                 </div>

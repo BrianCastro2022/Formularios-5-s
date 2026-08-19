@@ -15,7 +15,7 @@ import { FormEventHandler, useState } from 'react';
 interface DiligenciarProps {
     checklist: ChecklistPlantilla;
     activo: Activo | null;
-    yaDiligenciadoEstePeriodo: boolean;
+    bloqueadoPorSemana: boolean;
 }
 
 interface RespuestaForm {
@@ -30,7 +30,7 @@ function opcionesDePregunta(pregunta: Pregunta, generales: EscalaOpcion[]): Esca
     return pregunta.escala_propia && pregunta.escala_propia.length > 0 ? pregunta.escala_propia : generales;
 }
 
-export default function Diligenciar({ checklist, activo, yaDiligenciadoEstePeriodo }: DiligenciarProps) {
+export default function Diligenciar({ checklist, activo, bloqueadoPorSemana }: DiligenciarProps) {
     const breadcrumbs: BreadcrumbItem[] = [{ title: 'Mi formulario', href: '/mi-formulario' }];
     const generales = checklist.escalas_generales ?? [];
     const secciones = checklist.secciones ?? [];
@@ -79,27 +79,34 @@ export default function Diligenciar({ checklist, activo, yaDiligenciadoEstePerio
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 rounded-xl p-4">
                 <Heading
                     title={`${checklist.nombre}${tituloActivo}`}
-                    description={step === 'form' ? `${respondidas}/${totalPreguntas} preguntas respondidas` : 'Revisa tus respuestas antes de enviar'}
+                    description={
+                        bloqueadoPorSemana
+                            ? undefined
+                            : step === 'form'
+                              ? `${respondidas}/${totalPreguntas} preguntas respondidas`
+                              : 'Revisa tus respuestas antes de enviar'
+                    }
                 />
 
-                {yaDiligenciadoEstePeriodo && (
-                    <Alert>
+                {bloqueadoPorSemana && (
+                    <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Ya diligenciaste este checklist este mes</AlertTitle>
+                        <AlertTitle>Este formulario ya fue diligenciado esta semana</AlertTitle>
                         <AlertDescription>
-                            Puedes continuar si necesitas registrar una nueva revisión, pero verifica que no sea un envío duplicado.
+                            Cada formulario solo se puede completar una vez por semana (por cualquier responsable). Podrán volver a diligenciarlo
+                            a partir del próximo lunes.
                         </AlertDescription>
                     </Alert>
                 )}
 
-                {fieldErrors.respuestas && (
+                {!bloqueadoPorSemana && fieldErrors.respuestas && (
                     <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>{fieldErrors.respuestas}</AlertDescription>
                     </Alert>
                 )}
 
-                {step === 'form' && (
+                {!bloqueadoPorSemana && step === 'form' && (
                     <form onSubmit={irARevisar} className="space-y-6">
                         {secciones.map((seccion) => (
                             <Card key={seccion.id}>
@@ -172,7 +179,7 @@ export default function Diligenciar({ checklist, activo, yaDiligenciadoEstePerio
                     </form>
                 )}
 
-                {step === 'resumen' && (
+                {!bloqueadoPorSemana && step === 'resumen' && (
                     <form onSubmit={enviar} className="space-y-6">
                         {secciones.map((seccion) => (
                             <Card key={seccion.id}>

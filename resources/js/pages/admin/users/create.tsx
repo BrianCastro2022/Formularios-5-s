@@ -16,6 +16,7 @@ export default function CreateUser({ areas }: { areas: Area[] }) {
         apellidos: '',
         tipo_identificacion: 'CC',
         numero_identificacion: '',
+        email: '',
         rol: 'responsable',
         area_id: '',
     });

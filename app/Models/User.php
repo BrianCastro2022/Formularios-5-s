@@ -30,6 +30,7 @@ class User extends Authenticatable
         'password',
         'rol',
         'must_change_password',
+        'recordatorio_enviado_at',
         'activo',
         'area_id',
     ];
@@ -64,6 +65,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'rol' => UserRole::class,
             'must_change_password' => 'boolean',
+            'recordatorio_enviado_at' => 'datetime',
             'activo' => 'boolean',
         ];
     }

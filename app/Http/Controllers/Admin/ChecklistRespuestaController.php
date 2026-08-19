@@ -9,6 +9,7 @@ use App\Models\ChecklistRespuesta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -56,6 +57,12 @@ class ChecklistRespuestaController extends Controller
             'detalles.pregunta.seccion',
             'detalles.opcion',
         ]);
+
+        $checklistRespuesta->detalles->each(function ($detalle) {
+            if ($detalle->foto_url) {
+                $detalle->foto_path = Storage::disk('public')->path($detalle->foto_url);
+            }
+        });
 
         $secciones = $checklistRespuesta->detalles
             ->groupBy(fn ($detalle) => $detalle->pregunta->seccion->nombre)

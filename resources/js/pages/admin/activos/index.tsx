@@ -14,6 +14,20 @@ import { FormEventHandler, useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Activos', href: '/admin/activos' }];
 
+const TIPO_LABELS: Record<Activo['tipo'], string> = {
+    camion: 'Camión',
+    montacargas: 'Montacargas',
+    zona_almacen: 'Zona de almacén',
+    zona_administrativo: 'Zona administrativa',
+};
+
+const CODIGO_LABELS: Record<Activo['tipo'], string> = {
+    camion: 'Placa',
+    montacargas: 'Número',
+    zona_almacen: 'Nombre de la zona',
+    zona_administrativo: 'Nombre de la zona',
+};
+
 interface ActivosIndexProps {
     activos: Paginated<Activo>;
     filters: { q?: string; tipo?: string; estado?: string };
@@ -64,7 +78,7 @@ export default function ActivosIndex({ activos, filters }: ActivosIndexProps) {
 
             <div className="flex flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex items-center justify-between">
-                    <Heading title="Activos" description="Placas de camiones y unidades de montacargas para diligenciar checklists." />
+                    <Heading title="Activos" description="Placas, montacargas y zonas para diligenciar checklists por activo individual." />
 
                     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                         <DialogTrigger asChild>
@@ -72,7 +86,7 @@ export default function ActivosIndex({ activos, filters }: ActivosIndexProps) {
                         </DialogTrigger>
                         <DialogContent>
                             <DialogTitle>Agregar activo</DialogTitle>
-                            <DialogDescription>Registra una nueva placa de camión o unidad de montacargas.</DialogDescription>
+                            <DialogDescription>Registra una nueva placa, unidad de montacargas o zona.</DialogDescription>
                             <form onSubmit={submit} className="space-y-4">
                                 <div className="grid gap-2">
                                     <Label htmlFor="tipo">Tipo</Label>
@@ -83,12 +97,14 @@ export default function ActivosIndex({ activos, filters }: ActivosIndexProps) {
                                         <SelectContent>
                                             <SelectItem value="camion">Camión</SelectItem>
                                             <SelectItem value="montacargas">Montacargas</SelectItem>
+                                            <SelectItem value="zona_almacen">Zona de almacén</SelectItem>
+                                            <SelectItem value="zona_administrativo">Zona administrativa</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="codigo">{data.tipo === 'camion' ? 'Placa' : 'Número'}</Label>
+                                    <Label htmlFor="codigo">{CODIGO_LABELS[data.tipo]}</Label>
                                     <Input id="codigo" value={data.codigo} onChange={(e) => setData('codigo', e.target.value)} required autoFocus />
                                     {errors.codigo && <p className="text-destructive text-sm">{errors.codigo}</p>}
                                 </div>
@@ -120,6 +136,8 @@ export default function ActivosIndex({ activos, filters }: ActivosIndexProps) {
                             <SelectItem value="todos">Todos los tipos</SelectItem>
                             <SelectItem value="camion">Camión</SelectItem>
                             <SelectItem value="montacargas">Montacargas</SelectItem>
+                            <SelectItem value="zona_almacen">Zona de almacén</SelectItem>
+                            <SelectItem value="zona_administrativo">Zona administrativa</SelectItem>
                         </SelectContent>
                     </Select>
 
@@ -160,7 +178,7 @@ export default function ActivosIndex({ activos, filters }: ActivosIndexProps) {
                             {activos.data.map((activo) => (
                                 <TableRow key={activo.id}>
                                     <TableCell className="font-medium">{activo.codigo}</TableCell>
-                                    <TableCell>{activo.tipo === 'camion' ? 'Camión' : 'Montacargas'}</TableCell>
+                                    <TableCell>{TIPO_LABELS[activo.tipo]}</TableCell>
                                     <TableCell>
                                         <Badge variant={activo.activo ? 'default' : 'secondary'}>{activo.activo ? 'Activo' : 'Inactivo'}</Badge>
                                     </TableCell>

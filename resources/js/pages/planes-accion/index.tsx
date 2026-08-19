@@ -1,9 +1,11 @@
+import { CrearPlanAccionDialog } from '@/components/crear-plan-accion-dialog';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { type Area, type BreadcrumbItem, type EstadoPlanAccion, type PlanAccion } from '@/types';
+import { type Area, type BreadcrumbItem, type EstadoPlanAccion, type PlanAccion, type RespuestaDetalle, type User } from '@/types';
 import { Head, router } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Planes de acción', href: '/planes-accion' }];
@@ -30,12 +32,14 @@ const VARIANTE_ESTADO: Record<EstadoPlanAccion, 'default' | 'secondary' | 'destr
 
 interface IndexProps {
     planes: PlanAccion[];
+    gapsPendientes: RespuestaDetalle[];
     areas: Area[];
+    responsables: User[];
     filtros: { estado?: string; area_id?: string };
     esAdmin: boolean;
 }
 
-export default function PlanesAccionIndex({ planes, areas, filtros, esAdmin }: IndexProps) {
+export default function PlanesAccionIndex({ planes, gapsPendientes, areas, responsables, filtros, esAdmin }: IndexProps) {
     const applyFilters = (next: Partial<IndexProps['filtros']>) => {
         router.get(route('planes-accion.index'), { ...filtros, ...next }, { preserveState: true, preserveScroll: true, replace: true });
     };
@@ -93,6 +97,44 @@ export default function PlanesAccionIndex({ planes, areas, filtros, esAdmin }: I
                         </Select>
                     )}
                 </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">GAPs sin plan de acción ({gapsPendientes.length})</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {gapsPendientes.length === 0 && (
+                            <p className="text-muted-foreground text-sm">No hay GAPs pendientes por convertir en plan de acción.</p>
+                        )}
+
+                        {gapsPendientes.map((detalle) => {
+                            const pregunta = detalle.pregunta;
+                            const areaNombre = pregunta?.seccion?.checklist_plantilla?.area?.nombre;
+                            const activoCodigo = detalle.checklist_respuesta?.activo?.codigo;
+                            const evaluador = detalle.checklist_respuesta?.usuario?.name;
+
+                            return (
+                                <div key={detalle.id} className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                                    <div className="space-y-1">
+                                        <p className="text-sm">{pregunta?.texto}</p>
+                                        <p className="text-muted-foreground text-xs">
+                                            {[areaNombre, activoCodigo, evaluador].filter(Boolean).join(' — ')}
+                                        </p>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        <Badge variant="destructive">{detalle.opcion?.texto_opcion}</Badge>
+                                        <CrearPlanAccionDialog
+                                            respuestaDetalleId={detalle.id}
+                                            responsables={responsables}
+                                            gapPregunta={pregunta?.texto ?? ''}
+                                            gapOpcion={detalle.opcion?.texto_opcion}
+                                        />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </CardContent>
+                </Card>
 
                 <div className="rounded-xl border">
                     <Table>

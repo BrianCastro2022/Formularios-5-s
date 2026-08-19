@@ -14,6 +14,7 @@ export interface UserFormData {
     apellidos: string;
     tipo_identificacion: string;
     numero_identificacion: string;
+    email: string;
     rol: 'admin' | 'responsable';
     area_id: string;
     [key: string]: string;
@@ -76,6 +77,22 @@ export function UserForm({ areas, data, setData, errors, processing, submitLabel
                     <InputError message={errors.numero_identificacion} />
                     {helpText && <p className="text-muted-foreground text-xs">{helpText}</p>}
                 </div>
+            </div>
+
+            <div className="grid gap-2">
+                <Label htmlFor="email">Correo electrónico{data.rol === 'responsable' && ' (obligatorio)'}</Label>
+                <Input
+                    id="email"
+                    type="email"
+                    value={data.email}
+                    onChange={(e) => setData('email', e.target.value)}
+                    required={data.rol === 'responsable'}
+                    placeholder="nombre@correo.com"
+                />
+                <InputError message={errors.email} />
+                <p className="text-muted-foreground text-xs">
+                    Se usa para enviarle un recordatorio por correo si pasa una semana sin diligenciar el formulario de su área.
+                </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

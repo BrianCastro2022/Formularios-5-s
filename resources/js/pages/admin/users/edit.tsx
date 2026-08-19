@@ -16,6 +16,7 @@ export default function EditUser({ user, areas }: { user: User; areas: Area[] })
         apellidos: user.apellidos,
         tipo_identificacion: user.tipo_identificacion,
         numero_identificacion: user.numero_identificacion,
+        email: user.email ?? '',
         rol: user.rol,
         area_id: user.area_id ? String(user.area_id) : '',
     });

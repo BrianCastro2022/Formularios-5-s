@@ -4,8 +4,8 @@ import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function ChangePassword() {
@@ -29,9 +29,8 @@ export default function ChangePassword() {
                 <div className="grid gap-6">
                     <div className="grid gap-2">
                         <Label htmlFor="password">Nueva contraseña</Label>
-                        <Input
+                        <PasswordInput
                             id="password"
-                            type="password"
                             required
                             autoFocus
                             tabIndex={1}
@@ -45,9 +44,8 @@ export default function ChangePassword() {
 
                     <div className="grid gap-2">
                         <Label htmlFor="password_confirmation">Confirmar contraseña</Label>
-                        <Input
+                        <PasswordInput
                             id="password_confirmation"
-                            type="password"
                             required
                             tabIndex={2}
                             autoComplete="new-password"

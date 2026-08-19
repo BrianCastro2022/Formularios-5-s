@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface LoginProps {
@@ -51,9 +52,8 @@ export default function Login({ status }: LoginProps) {
 
                     <div className="grid gap-2">
                         <Label htmlFor="password">Contraseña</Label>
-                        <Input
+                        <PasswordInput
                             id="password"
-                            type="password"
                             required
                             tabIndex={2}
                             autoComplete="current-password"

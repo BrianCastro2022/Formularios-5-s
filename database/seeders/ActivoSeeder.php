@@ -11,7 +11,9 @@ class ActivoSeeder extends Seeder
 {
     /**
      * Placas de camiones (23, HU-10) y unidades de montacargas (3, HU-11) precargadas
-     * literalmente desde el Apéndice de la Fase 3.
+     * literalmente desde el Apéndice de la Fase 3, más las zonas de Almacén y
+     * Administrativo (pedidas por el negocio después de Fase 4) que se diligencian
+     * igual que un activo: una por una, no una sola vez por área.
      */
     public function run(): void
     {
@@ -23,21 +25,32 @@ class ActivoSeeder extends Seeder
 
         $montacargas = ['633', '872', '566'];
 
-        $areaCamiones = Area::query()->where('nombre', 'Camiones')->firstOrFail();
-        $areaMontacargas = Area::query()->where('nombre', 'Montacargas')->firstOrFail();
+        $zonasAlmacen = [
+            'Reempaque', 'Sorting', 'Residuos y Sustancias Químicas', 'Bahías de Carga y Descarga T1',
+            'Picking', 'Marketplace', 'Almacén PT', 'Vertimiento', 'Centro de Acopio',
+        ];
 
-        foreach ($camiones as $placa) {
-            Activo::query()->firstOrCreate(
-                ['codigo' => $placa],
-                ['area_id' => $areaCamiones->id, 'tipo' => ActivoTipo::Camion, 'activo' => true],
-            );
-        }
+        $zonasAdministrativo = [
+            'Oficinas Administrativas OL', 'Oficinas Administrativas UC', 'Zona de Liquidación', 'Salas de agencia',
+        ];
 
-        foreach ($montacargas as $numero) {
-            Activo::query()->firstOrCreate(
-                ['codigo' => $numero],
-                ['area_id' => $areaMontacargas->id, 'tipo' => ActivoTipo::Montacargas, 'activo' => true],
-            );
+        $porTipo = [
+            ActivoTipo::Camion->value => $camiones,
+            ActivoTipo::Montacargas->value => $montacargas,
+            ActivoTipo::ZonaAlmacen->value => $zonasAlmacen,
+            ActivoTipo::ZonaAdministrativo->value => $zonasAdministrativo,
+        ];
+
+        foreach ($porTipo as $tipoValue => $codigos) {
+            $tipo = ActivoTipo::from($tipoValue);
+            $area = Area::query()->where('nombre', $tipo->areaNombre())->firstOrFail();
+
+            foreach ($codigos as $codigo) {
+                Activo::query()->firstOrCreate(
+                    ['codigo' => $codigo],
+                    ['area_id' => $area->id, 'tipo' => $tipo, 'activo' => true],
+                );
+            }
         }
     }
 }

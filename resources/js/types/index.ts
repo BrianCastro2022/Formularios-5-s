@@ -25,6 +25,7 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    flash: { status?: string | null };
     [key: string]: unknown;
 }
 
@@ -54,7 +55,7 @@ export interface User {
     [key: string]: unknown; // This allows for additional properties...
 }
 
-export type ActivoTipo = 'camion' | 'montacargas';
+export type ActivoTipo = 'camion' | 'montacargas' | 'zona_almacen' | 'zona_administrativo';
 
 export interface Activo {
     id: number;
