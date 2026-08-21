@@ -15,14 +15,19 @@
         .tarjetas td { border: none; padding: 8px 12px; }
         .tarjeta-valor { font-size: 20px; font-weight: bold; }
         .tarjeta-label { color: #666; }
+        .grafica { display: block; max-width: 480px; max-height: 260px; margin: 6px 0 10px; }
     </style>
 </head>
 <body>
     <h1>Dashboard 5S — CD Nariño</h1>
     <p class="subtitle">
         Filtros:
-        Mes {{ $filtros['mes'] ?? 'todos' }} ·
-        Año {{ $filtros['anio'] ?? 'todos' }} ·
+        @if (($filtros['fecha_desde'] ?? null) || ($filtros['fecha_hasta'] ?? null))
+            Desde {{ $filtros['fecha_desde'] ?? '—' }} hasta {{ $filtros['fecha_hasta'] ?? '—' }} ·
+        @else
+            Mes {{ $filtros['mes'] ?? 'todos' }} ·
+            Año {{ $filtros['anio'] ?? 'todos' }} ·
+        @endif
         Área {{ $filtros['area_id'] ?? 'todas' }} ·
         Activo {{ $filtros['activo_id'] ?? 'todos' }}
         — generado {{ now()->format('d/m/Y H:i') }}
@@ -46,6 +51,9 @@
     </table>
 
     <h2>Resultado por las 5S</h2>
+    @if (! empty($graficas['radar'] ?? null))
+        <img class="grafica" src="{{ $graficas['radar'] }}" alt="Gráfica: resultado por las 5S">
+    @endif
     <table>
         <tr><th>Sección</th><th>% Adherencia</th></tr>
         @foreach ($datos['por_s'] as $fila)
@@ -54,6 +62,9 @@
     </table>
 
     <h2>Tendencia mensual</h2>
+    @if (! empty($graficas['tendencia'] ?? null))
+        <img class="grafica" src="{{ $graficas['tendencia'] }}" alt="Gráfica: tendencia mensual">
+    @endif
     <table>
         <tr><th>Periodo</th><th>Checklists</th><th>% Adherencia</th></tr>
         @foreach ($datos['tendencia_mensual'] as $fila)
@@ -62,6 +73,9 @@
     </table>
 
     <h2>Resultado por área</h2>
+    @if (! empty($graficas['area'] ?? null))
+        <img class="grafica" src="{{ $graficas['area'] }}" alt="Gráfica: resultado por área">
+    @endif
     <table>
         <tr><th>Área</th><th>Checklists</th><th>% Adherencia</th></tr>
         @foreach ($datos['por_area'] as $fila)
@@ -69,7 +83,21 @@
         @endforeach
     </table>
 
+    <h2>Resultado por subcategoría</h2>
+    @if (! empty($graficas['subcategoria'] ?? null))
+        <img class="grafica" src="{{ $graficas['subcategoria'] }}" alt="Gráfica: resultado por subcategoría">
+    @endif
+    <table>
+        <tr><th>Subcategoría</th><th>Respuestas</th><th>% Adherencia</th></tr>
+        @foreach ($datos['por_subcategoria'] as $fila)
+            <tr><td>{{ $fila['subcategoria'] }}</td><td>{{ $fila['total'] }}</td><td>{{ $fila['promedio'] ?? '—' }}%</td></tr>
+        @endforeach
+    </table>
+
     <h2>Resultado por evaluador</h2>
+    @if (! empty($graficas['evaluador'] ?? null))
+        <img class="grafica" src="{{ $graficas['evaluador'] }}" alt="Gráfica: resultado por evaluador">
+    @endif
     <table>
         <tr><th>Evaluador</th><th>Checklists</th><th>% Adherencia</th></tr>
         @foreach ($datos['por_evaluador'] as $fila)
@@ -86,6 +114,9 @@
     </table>
 
     <h2>Top oportunidades (preguntas con más GAPs)</h2>
+    @if (! empty($graficas['oportunidades'] ?? null))
+        <img class="grafica" src="{{ $graficas['oportunidades'] }}" alt="Gráfica: top oportunidades">
+    @endif
     <table>
         <tr><th>Pregunta</th><th>Subcategoría</th><th>GAPs</th></tr>
         @foreach ($datos['top_oportunidades'] as $fila)

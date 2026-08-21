@@ -11,6 +11,8 @@ use App\Models\RespuestaDetalle;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,7 +34,7 @@ class PlanAccionController extends Controller
         $user = $request->user();
         $filtros = $request->only(['estado', 'area_id']);
 
-        $planes = PlanAccion::query()
+        $planesFiltrados = PlanAccion::query()
             ->with([
                 'responsable',
                 'respuestaDetalle.pregunta.seccion.checklistPlantilla.area',
@@ -54,6 +56,12 @@ class PlanAccionController extends Controller
             )
             ->values();
 
+        // Paginación manual porque el filtro de estado corre sobre el accessor
+        // calculado `estado_efectivo` (no una columna real, ver PlanAccion::
+        // estadoEfectivo()), así que no se puede paginar la query directamente:
+        // primero se resuelve toda la colección filtrada, luego se pagina en PHP.
+        $planes = $this->paginarColeccion($planesFiltrados, $request, 'planes_page');
+
         $gapsPendientes = RespuestaDetalle::query()
             ->whereHas('opcion', fn ($q) => $q->where('es_gap', true))
             ->whereDoesntHave('planesAccion')
@@ -72,7 +80,8 @@ class PlanAccionController extends Controller
                 fn ($query, $areaId) => $query->whereHas('pregunta.seccion.checklistPlantilla', fn ($q) => $q->where('area_id', $areaId))
             )
             ->orderByDesc('id')
-            ->get();
+            ->paginate(10, ['*'], 'gaps_page')
+            ->withQueryString();
 
         return Inertia::render('planes-accion/index', [
             'planes' => $planes,
@@ -107,5 +116,26 @@ class PlanAccionController extends Controller
         ]);
 
         return back()->with('status', 'Plan de acción actualizado.');
+    }
+
+    /**
+     * Pagina en memoria una colección ya resuelta (10 por página), preservando
+     * los demás parámetros de la query string (filtros, la paginación de la
+     * otra tabla) en los enlaces generados.
+     */
+    private function paginarColeccion(Collection $items, Request $request, string $pageName): LengthAwarePaginator
+    {
+        $perPage = 10;
+        $page = $request->integer($pageName, 1);
+
+        $paginator = new LengthAwarePaginator(
+            $items->forPage($page, $perPage)->values(),
+            $items->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => $pageName]
+        );
+
+        return $paginator->appends($request->except($pageName));
     }
 }

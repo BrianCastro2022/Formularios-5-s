@@ -1,12 +1,21 @@
 import { CrearPlanAccionDialog } from '@/components/crear-plan-accion-dialog';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { type Area, type BreadcrumbItem, type EstadoPlanAccion, type PlanAccion, type RespuestaDetalle, type User } from '@/types';
-import { Head, router } from '@inertiajs/react';
+import {
+    type Area,
+    type BreadcrumbItem,
+    type EstadoPlanAccion,
+    type Paginated,
+    type PlanAccion,
+    type RespuestaDetalle,
+    type User,
+} from '@/types';
+import { Head, Link, router } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Planes de acción', href: '/planes-accion' }];
 
@@ -31,12 +40,31 @@ const VARIANTE_ESTADO: Record<EstadoPlanAccion, 'default' | 'secondary' | 'destr
 };
 
 interface IndexProps {
-    planes: PlanAccion[];
-    gapsPendientes: RespuestaDetalle[];
+    planes: Paginated<PlanAccion>;
+    gapsPendientes: Paginated<RespuestaDetalle>;
     areas: Area[];
     responsables: User[];
     filtros: { estado?: string; area_id?: string };
     esAdmin: boolean;
+}
+
+/** Controles de paginación (máx. 10 registros por página), mismo patrón que admin/users. */
+function Paginacion({ paginado }: { paginado: Paginated<unknown> }) {
+    if (paginado.last_page <= 1) return null;
+
+    return (
+        <div className="flex flex-wrap items-center gap-1">
+            {paginado.links.map((link, index) => (
+                <Button key={index} variant={link.active ? 'default' : 'outline'} size="sm" disabled={!link.url} asChild={!!link.url}>
+                    {link.url ? (
+                        <Link href={link.url} preserveScroll dangerouslySetInnerHTML={{ __html: link.label }} />
+                    ) : (
+                        <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                    )}
+                </Button>
+            ))}
+        </div>
+    );
 }
 
 export default function PlanesAccionIndex({ planes, gapsPendientes, areas, responsables, filtros, esAdmin }: IndexProps) {
@@ -100,14 +128,14 @@ export default function PlanesAccionIndex({ planes, gapsPendientes, areas, respo
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-base">GAPs sin plan de acción ({gapsPendientes.length})</CardTitle>
+                        <CardTitle className="text-base">GAPs sin plan de acción ({gapsPendientes.total})</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {gapsPendientes.length === 0 && (
+                        {gapsPendientes.data.length === 0 && (
                             <p className="text-muted-foreground text-sm">No hay GAPs pendientes por convertir en plan de acción.</p>
                         )}
 
-                        {gapsPendientes.map((detalle) => {
+                        {gapsPendientes.data.map((detalle) => {
                             const pregunta = detalle.pregunta;
                             const areaNombre = pregunta?.seccion?.checklist_plantilla?.area?.nombre;
                             const activoCodigo = detalle.checklist_respuesta?.activo?.codigo;
@@ -134,6 +162,11 @@ export default function PlanesAccionIndex({ planes, gapsPendientes, areas, respo
                             );
                         })}
                     </CardContent>
+                    {gapsPendientes.data.length > 0 && (
+                        <CardContent className="pt-0">
+                            <Paginacion paginado={gapsPendientes} />
+                        </CardContent>
+                    )}
                 </Card>
 
                 <div className="rounded-xl border">
@@ -149,7 +182,7 @@ export default function PlanesAccionIndex({ planes, gapsPendientes, areas, respo
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {planes.length === 0 && (
+                            {planes.data.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-muted-foreground py-8 text-center">
                                         No hay planes de acción con estos filtros.
@@ -157,7 +190,7 @@ export default function PlanesAccionIndex({ planes, gapsPendientes, areas, respo
                                 </TableRow>
                             )}
 
-                            {planes.map((plan) => {
+                            {planes.data.map((plan) => {
                                 const pregunta = plan.respuesta_detalle?.pregunta;
                                 const areaNombre = pregunta?.seccion?.checklist_plantilla?.area?.nombre;
                                 const activoCodigo = plan.respuesta_detalle?.checklist_respuesta?.activo?.codigo;
@@ -199,6 +232,8 @@ export default function PlanesAccionIndex({ planes, gapsPendientes, areas, respo
                         </TableBody>
                     </Table>
                 </div>
+
+                <Paginacion paginado={planes} />
             </div>
         </AppLayout>
     );

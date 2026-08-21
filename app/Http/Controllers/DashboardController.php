@@ -75,16 +75,27 @@ class DashboardController extends Controller
     }
 
     /**
-     * HU-29 — Exporta el dashboard (con los filtros aplicados) a PDF.
+     * HU-29 — Exporta el dashboard (con los filtros aplicados) a PDF, con las
+     * mismas gráficas que se ven en pantalla. DomPDF no ejecuta JavaScript ni
+     * dibuja <canvas>, así que las gráficas (Chart.js) se capturan como imagen
+     * PNG en el propio navegador (canvas.toBase64Image()) y llegan aquí ya
+     * renderizadas — por eso esta ruta es POST y no GET, para poder mandar ese
+     * payload de imágenes en el body.
      */
     public function exportarPdf(Request $request): HttpResponse
     {
         $this->authorizeAdmin($request);
 
         $filtros = $this->validarFiltros($request);
+        $graficas = $request->validate([
+            'graficas' => ['nullable', 'array'],
+            'graficas.*' => ['nullable', 'string', 'regex:/^data:image\/png;base64,/'],
+        ])['graficas'] ?? [];
+
         $datos = $this->aggregator->agregar($filtros);
 
-        $pdf = Pdf::loadView('exports.dashboard', ['datos' => $datos, 'filtros' => $filtros])->setPaper('a4', 'landscape');
+        $pdf = Pdf::loadView('exports.dashboard', ['datos' => $datos, 'filtros' => $filtros, 'graficas' => $graficas])
+            ->setPaper('a4', 'landscape');
 
         return $pdf->download('dashboard-5s-cd-narino.pdf');
     }
@@ -110,6 +121,10 @@ class DashboardController extends Controller
         return $request->validate([
             'mes' => ['nullable', 'integer', 'between:1,12'],
             'anio' => ['nullable', 'integer', 'min:2000'],
+            // Rango de fechas (HU nueva): si viene alguno de los dos, tiene prioridad
+            // sobre mes/año — ver DashboardAggregator::agregar().
+            'fecha_desde' => ['nullable', 'date'],
+            'fecha_hasta' => ['nullable', 'date', 'after_or_equal:fecha_desde'],
             'area_id' => ['nullable', 'exists:areas,id'],
             'activo_id' => ['nullable', 'exists:activos,id'],
             'meta' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -125,6 +140,8 @@ class DashboardController extends Controller
         $clave = 'dashboard.'.md5(json_encode([
             $filtros['mes'] ?? null,
             $filtros['anio'] ?? null,
+            $filtros['fecha_desde'] ?? null,
+            $filtros['fecha_hasta'] ?? null,
             $filtros['area_id'] ?? null,
             $filtros['activo_id'] ?? null,
         ]));

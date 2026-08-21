@@ -24,8 +24,8 @@ import {
     type ChartOptions,
 } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
-import { FileSpreadsheet, FileText } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { FileSpreadsheet, FileText, FilterX, LoaderCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bar, Line, Radar } from 'react-chartjs-2';
 
 ChartJS.register(
@@ -87,11 +87,38 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
 
     const [mes, setMes] = useState<string>('todos');
     const [anio, setAnio] = useState<string>(String(currentYear));
+    const [fechaDesde, setFechaDesde] = useState<string>('');
+    const [fechaHasta, setFechaHasta] = useState<string>('');
     const [areaId, setAreaId] = useState<string>('todas');
     const [activoId, setActivoId] = useState<string>('todos');
     const [meta, setMeta] = useState<number>(metaDefault);
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [exportandoPdf, setExportandoPdf] = useState(false);
+
+    // Referencias a cada gráfica para poder capturarlas como imagen (canvas.
+    // toBase64Image()) y mandarlas al backend al exportar a PDF — DomPDF no
+    // ejecuta JS ni dibuja <canvas>, así que no puede renderizarlas por su cuenta.
+    const radarRef = useRef<ChartJS<'radar'>>(null);
+    const lineRef = useRef<ChartJS<'line'>>(null);
+    const barAreaRef = useRef<ChartJS<'bar'>>(null);
+    const barSubcategoriaRef = useRef<ChartJS<'bar'>>(null);
+    const barEvaluadorRef = useRef<ChartJS<'bar'>>(null);
+    const barOportunidadesRef = useRef<ChartJS<'bar'>>(null);
+
+    // El rango de fechas manda sobre mes/año en cuanto se elige alguno de los dos
+    // (ver DashboardAggregator::agregar) — se deshabilitan para que no parezca que
+    // ambos filtros aplican a la vez.
+    const hayRangoFechas = fechaDesde !== '' || fechaHasta !== '';
+
+    const limpiarFiltros = () => {
+        setMes('todos');
+        setAnio(String(currentYear));
+        setFechaDesde('');
+        setFechaHasta('');
+        setAreaId('todas');
+        setActivoId('todos');
+    };
 
     const areaSeleccionada = areas.find((a) => String(a.id) === areaId);
     const requiereActivo = areaSeleccionada ? AREAS_CON_ACTIVO.includes(areaSeleccionada.nombre) : false;
@@ -106,8 +133,13 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
 
     useEffect(() => {
         const params = new URLSearchParams();
-        if (mes !== 'todos') params.set('mes', mes);
-        if (anio !== 'todos') params.set('anio', anio);
+        if (hayRangoFechas) {
+            if (fechaDesde) params.set('fecha_desde', fechaDesde);
+            if (fechaHasta) params.set('fecha_hasta', fechaHasta);
+        } else {
+            if (mes !== 'todos') params.set('mes', mes);
+            if (anio !== 'todos') params.set('anio', anio);
+        }
         if (areaId !== 'todas') params.set('area_id', areaId);
         if (activoId !== 'todos') params.set('activo_id', activoId);
         params.set('meta', String(meta));
@@ -119,7 +151,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
             .then((res) => res.json())
             .then((json: DashboardData) => setData(json))
             .finally(() => setLoading(false));
-    }, [mes, anio, areaId, activoId, meta]);
+    }, [mes, anio, fechaDesde, fechaHasta, hayRangoFechas, areaId, activoId, meta]);
 
     // Línea de meta (HU-22), comparable contra el % de adherencia en todos los
     // gráficos que manejan porcentaje — no aplica al de "Top oportunidades", que
@@ -254,12 +286,58 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
     // HU-29: exporta el dashboard con los filtros actualmente aplicados.
     const exportParams = useMemo(() => {
         const params = new URLSearchParams();
-        if (mes !== 'todos') params.set('mes', mes);
-        if (anio !== 'todos') params.set('anio', anio);
+        if (hayRangoFechas) {
+            if (fechaDesde) params.set('fecha_desde', fechaDesde);
+            if (fechaHasta) params.set('fecha_hasta', fechaHasta);
+        } else {
+            if (mes !== 'todos') params.set('mes', mes);
+            if (anio !== 'todos') params.set('anio', anio);
+        }
         if (areaId !== 'todas') params.set('area_id', areaId);
         if (activoId !== 'todos') params.set('activo_id', activoId);
         return params.toString();
-    }, [mes, anio, areaId, activoId]);
+    }, [mes, anio, fechaDesde, fechaHasta, hayRangoFechas, areaId, activoId]);
+
+    // HU-29 (revisada): el PDF ahora incluye las mismas gráficas que se ven en
+    // pantalla — se capturan del propio <canvas> de Chart.js y se mandan por
+    // POST junto con los filtros, porque DomPDF no las puede dibujar solo.
+    const exportarPdf = async () => {
+        setExportandoPdf(true);
+        try {
+            const graficas = {
+                radar: radarRef.current?.toBase64Image(),
+                tendencia: lineRef.current?.toBase64Image(),
+                area: barAreaRef.current?.toBase64Image(),
+                subcategoria: barSubcategoriaRef.current?.toBase64Image(),
+                evaluador: barEvaluadorRef.current?.toBase64Image(),
+                oportunidades: barOportunidadesRef.current?.toBase64Image(),
+            };
+
+            const xsrfToken = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/)?.[1] ?? '');
+
+            const respuesta = await fetch(route('dashboard.exportar.pdf'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/pdf',
+                    'X-XSRF-TOKEN': xsrfToken,
+                },
+                body: JSON.stringify({ ...Object.fromEntries(new URLSearchParams(exportParams)), graficas }),
+            });
+
+            if (!respuesta.ok) throw new Error('No se pudo generar el PDF.');
+
+            const blob = await respuesta.blob();
+            const url = URL.createObjectURL(blob);
+            const enlace = document.createElement('a');
+            enlace.href = url;
+            enlace.download = 'dashboard-5s-cd-narino.pdf';
+            enlace.click();
+            URL.revokeObjectURL(url);
+        } finally {
+            setExportandoPdf(false);
+        }
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -269,11 +347,9 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <Heading title="Dashboard" description="Indicadores generales de adherencia 5S — CD Nariño." />
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                            <a href={`${route('dashboard.exportar.pdf')}?${exportParams}`}>
-                                <FileText className="h-4 w-4" />
-                                Exportar PDF
-                            </a>
+                        <Button variant="outline" size="sm" onClick={exportarPdf} disabled={exportandoPdf}>
+                            {exportandoPdf ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                            Exportar PDF
                         </Button>
                         <Button variant="outline" size="sm" asChild>
                             <a href={`${route('dashboard.exportar.excel')}?${exportParams}`}>
@@ -284,10 +360,10 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
                     <div className="grid gap-1.5">
                         <Label className="text-muted-foreground text-xs">Mes</Label>
-                        <Select value={mes} onValueChange={setMes}>
+                        <Select value={mes} onValueChange={setMes} disabled={hayRangoFechas}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
@@ -304,7 +380,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
 
                     <div className="grid gap-1.5">
                         <Label className="text-muted-foreground text-xs">Año</Label>
-                        <Select value={anio} onValueChange={setAnio}>
+                        <Select value={anio} onValueChange={setAnio} disabled={hayRangoFechas}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
@@ -317,6 +393,16 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <Label className="text-muted-foreground text-xs">Desde</Label>
+                        <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} max={fechaHasta || undefined} />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <Label className="text-muted-foreground text-xs">Hasta</Label>
+                        <Input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} min={fechaDesde || undefined} />
                     </div>
 
                     <div className="grid gap-1.5">
@@ -356,6 +442,14 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                     <div className="grid gap-1.5">
                         <Label className="text-muted-foreground text-xs">Meta (%)</Label>
                         <Input type="number" min={0} max={100} value={meta} onChange={(e) => setMeta(Number(e.target.value))} />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                        <Label className="text-muted-foreground text-xs">&nbsp;</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros} className="w-full">
+                            <FilterX className="h-4 w-4" />
+                            Limpiar filtros
+                        </Button>
                     </div>
                 </div>
 
@@ -418,7 +512,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                             <CardTitle className="text-base">Resultado por las 5S</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Radar options={radarOptions} data={radarDataS} />
+                            <Radar ref={radarRef} options={radarOptions} data={radarDataS} />
                         </CardContent>
                     </Card>
 
@@ -427,7 +521,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                             <CardTitle className="text-base">Tendencia mensual</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Line options={lineOptions} data={lineDataTendencia} />
+                            <Line ref={lineRef} options={lineOptions} data={lineDataTendencia} />
                         </CardContent>
                     </Card>
                 </div>
@@ -438,7 +532,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                             <CardTitle className="text-base">Resultado por área</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Bar options={barOptions} data={barDataArea} />
+                            <Bar ref={barAreaRef} options={barOptions} data={barDataArea} />
                         </CardContent>
                     </Card>
 
@@ -448,7 +542,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                             <p className="text-muted-foreground text-xs">Subcategorías con menor adherencia primero.</p>
                         </CardHeader>
                         <CardContent>
-                            <Bar options={barHorizontalOptions} data={barDataSubcategoria} />
+                            <Bar ref={barSubcategoriaRef} options={barHorizontalOptions} data={barDataSubcategoria} />
                         </CardContent>
                     </Card>
                 </div>
@@ -459,7 +553,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                             <CardTitle className="text-base">Resultado por evaluador</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Bar options={barHorizontalOptions} data={barDataEvaluador} />
+                            <Bar ref={barEvaluadorRef} options={barHorizontalOptions} data={barDataEvaluador} />
                         </CardContent>
                     </Card>
 
@@ -468,7 +562,7 @@ export default function Dashboard({ areas, activos, metaDefault, responsables }:
                             <CardTitle className="text-base">Top oportunidades (preguntas con más GAPs)</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <Bar options={gapsHorizontalOptions} data={barDataOportunidades} />
+                            <Bar ref={barOportunidadesRef} options={gapsHorizontalOptions} data={barDataOportunidades} />
 
                             <div className="space-y-2">
                                 {data?.top_oportunidades.map((fila) => (

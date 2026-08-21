@@ -27,17 +27,23 @@ class DashboardExport implements WithMultipleSheets
             new ArraySheet(
                 'Por área',
                 ['Área', 'Checklists', '% Adherencia'],
-                $this->filas($d['por_area'], ['area', 'total', 'promedio'])
+                $this->filas($d['por_area'], ['area', 'total', 'promedio']),
+                columnaEtiqueta: 0,
+                columnaValor: 2,
             ),
             new ArraySheet(
                 'Por evaluador',
                 ['Evaluador', 'Checklists', '% Adherencia'],
-                $this->filas($d['por_evaluador'], ['evaluador', 'total', 'promedio'])
+                $this->filas($d['por_evaluador'], ['evaluador', 'total', 'promedio']),
+                columnaEtiqueta: 0,
+                columnaValor: 2,
             ),
             new ArraySheet(
                 'Por subcategoría',
                 ['Subcategoría', 'Respuestas', '% Adherencia'],
-                $this->filas($d['por_subcategoria'], ['subcategoria', 'total', 'promedio'])
+                $this->filas($d['por_subcategoria'], ['subcategoria', 'total', 'promedio']),
+                columnaEtiqueta: 0,
+                columnaValor: 2,
             ),
             new ArraySheet(
                 'Por activo',
@@ -64,7 +70,7 @@ class DashboardExport implements WithMultipleSheets
                 ['En progreso', $d['planes_accion']['en_progreso'] ?? 0],
                 ['Cerrados', $d['planes_accion']['cerrado'] ?? 0],
                 ['Vencidos', $d['planes_accion']['vencido'] ?? 0],
-            ]),
+            ], columnaEtiqueta: 0, columnaValor: 1, tipoGrafico: 'pie'),
         ];
     }
 

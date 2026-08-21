@@ -32,15 +32,25 @@ class DashboardAggregator
     public function __construct(private readonly AdherenciaCalculator $calculator) {}
 
     /**
-     * @param  array{mes?: int|null, anio?: int|null, area_id?: int|null, activo_id?: int|null}  $filtros
+     * @param  array{mes?: int|null, anio?: int|null, fecha_desde?: string|null, fecha_hasta?: string|null, area_id?: int|null, activo_id?: int|null}  $filtros
      * @return array<string, mixed>
      */
     public function agregar(array $filtros): array
     {
+        $hayRangoFechas = ($filtros['fecha_desde'] ?? null) || ($filtros['fecha_hasta'] ?? null);
+
         $checklists = ChecklistRespuesta::query()
             ->with(['checklistPlantilla.area', 'usuario', 'activo'])
-            ->when($filtros['mes'] ?? null, fn ($query, $mes) => $query->whereMonth('fecha', $mes))
-            ->when($filtros['anio'] ?? null, fn ($query, $anio) => $query->whereYear('fecha', $anio))
+            ->when(
+                $hayRangoFechas,
+                // El rango de fechas manda sobre mes/año si el usuario eligió alguno.
+                fn ($query) => $query
+                    ->when($filtros['fecha_desde'] ?? null, fn ($q, $desde) => $q->whereDate('fecha', '>=', $desde))
+                    ->when($filtros['fecha_hasta'] ?? null, fn ($q, $hasta) => $q->whereDate('fecha', '<=', $hasta)),
+                fn ($query) => $query
+                    ->when($filtros['mes'] ?? null, fn ($q, $mes) => $q->whereMonth('fecha', $mes))
+                    ->when($filtros['anio'] ?? null, fn ($q, $anio) => $q->whereYear('fecha', $anio))
+            )
             ->when($filtros['activo_id'] ?? null, fn ($query, $activoId) => $query->where('activo_id', $activoId))
             ->when(
                 $filtros['area_id'] ?? null,
