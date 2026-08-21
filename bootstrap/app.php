@@ -20,6 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             EnsurePasswordIsChanged::class,
         ]);
+
+        // Railway termina el SSL en su proxy: el contenedor recibe tráfico como
+        // HTTP aunque el usuario llegue por HTTPS. Sin esto, Laravel genera URLs
+        // con http:// y el navegador bloquea CSS/JS como contenido mixto.
+        $middleware->trustProxies(at: '*');
     })
     ->withSchedule(function (Schedule $schedule) {
         // Requiere que algo dispare `php artisan schedule:run` cada minuto (cron
