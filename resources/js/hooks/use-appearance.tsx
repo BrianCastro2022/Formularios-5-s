@@ -2,10 +2,18 @@ import { useEffect, useState } from 'react';
 
 export type Appearance = 'light' | 'dark' | 'system';
 
+// El negocio pidió que el software quede siempre en modo claro por ahora —
+// dark/system quedan desactivados (no borrados) en los selectores de UI, y
+// esta bandera es el refuerzo a nivel de lógica: aunque quede algo en
+// localStorage de una sesión previa, el tema aplicado siempre es 'light'.
+// Para reactivar dark/system: poner esto en false y quitar `disabled` de los
+// botones/items en appearance-tabs.tsx y appearance-dropdown.tsx.
+const SOLO_MODO_CLARO = true;
+
 const prefersDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
 
 const applyTheme = (appearance: Appearance) => {
-    const isDark = appearance === 'dark' || (appearance === 'system' && prefersDark());
+    const isDark = !SOLO_MODO_CLARO && (appearance === 'dark' || (appearance === 'system' && prefersDark()));
 
     document.documentElement.classList.toggle('dark', isDark);
 };
@@ -18,7 +26,7 @@ const handleSystemThemeChange = () => {
 };
 
 export function initializeTheme() {
-    const savedAppearance = (localStorage.getItem('appearance') as Appearance) || 'system';
+    const savedAppearance = SOLO_MODO_CLARO ? 'light' : (localStorage.getItem('appearance') as Appearance) || 'system';
 
     applyTheme(savedAppearance);
 
@@ -37,7 +45,10 @@ export function useAppearance() {
 
     useEffect(() => {
         const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
-        updateAppearance(savedAppearance || 'system');
+        // Con SOLO_MODO_CLARO en true, se ignora cualquier 'dark'/'system' que
+        // haya quedado guardado de antes, para que ni el estado interno ni el
+        // ícono del selector muestren algo distinto al tema realmente aplicado.
+        updateAppearance(SOLO_MODO_CLARO ? 'light' : savedAppearance || 'system');
 
         return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
     }, []);
