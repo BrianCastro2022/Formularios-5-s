@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\ActivoController;
 use App\Http\Controllers\Admin\ChecklistController;
 use App\Http\Controllers\Admin\ChecklistRespuestaController;
+use App\Http\Controllers\Admin\QrPublicoController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,5 +35,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::prefix('checklists-respuesta')->name('checklists-respuesta.')->group(function () {
         Route::get('/', [ChecklistRespuestaController::class, 'index'])->name('index');
         Route::get('{checklistRespuesta}/exportar', [ChecklistRespuestaController::class, 'exportarPdf'])->name('exportar');
+    });
+
+    Route::prefix('qr-publico')->name('qr-publico.')->group(function () {
+        Route::get('/', [QrPublicoController::class, 'index'])->name('index');
+        Route::patch('estado', [QrPublicoController::class, 'toggleStatus'])->name('toggle-status');
     });
 });

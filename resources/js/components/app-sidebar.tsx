@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { ClipboardCheck, ClipboardList, FileStack, History, LayoutGrid, ListChecks, Truck, Users } from 'lucide-react';
+import { ClipboardCheck, ClipboardList, FileStack, History, LayoutGrid, ListChecks, QrCode, Truck, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const footerNavItems: NavItem[] = [];
@@ -22,6 +22,7 @@ export function AppSidebar() {
                   { title: 'Checklists', url: '/admin/checklists', icon: ClipboardList },
                   { title: 'Checklists diligenciados', url: '/admin/checklists-respuesta', icon: FileStack },
                   { title: 'Planes de acción', url: '/planes-accion', icon: ClipboardCheck },
+                  { title: 'Código QR', url: '/admin/qr-publico', icon: QrCode },
               ]
             : [
                   { title: 'Mi formulario', url: '/mi-formulario', icon: ListChecks },

@@ -22,3 +22,4 @@ require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
 require __DIR__.'/formulario.php';
 require __DIR__.'/planes-accion.php';
+require __DIR__.'/qr-publico.php';
