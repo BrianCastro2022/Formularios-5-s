@@ -142,14 +142,17 @@ export default function PlanesAccionIndex({ planes, gapsPendientes, areas, respo
                             const evaluador = detalle.checklist_respuesta?.usuario?.name;
 
                             return (
-                                <div key={detalle.id} className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                                <div
+                                    key={detalle.id}
+                                    className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+                                >
                                     <div className="space-y-1">
                                         <p className="text-sm">{pregunta?.texto}</p>
                                         <p className="text-muted-foreground text-xs">
                                             {[areaNombre, activoCodigo, evaluador].filter(Boolean).join(' — ')}
                                         </p>
                                     </div>
-                                    <div className="flex shrink-0 items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                                         <Badge variant="destructive">{detalle.opcion?.texto_opcion}</Badge>
                                         <CrearPlanAccionDialog
                                             respuestaDetalleId={detalle.id}
