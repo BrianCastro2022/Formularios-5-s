@@ -12,6 +12,17 @@ declare global {
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// Cada deploy cambia los nombres (hash) de los archivos JS. Si el navegador
+// dejó el sitio abierto/en caché desde antes del último deploy (común en
+// móvil, donde las pestañas quedan suspendidas en vez de cerrarse) y luego
+// navega a una página nueva, intenta cargar un chunk que ya no existe en el
+// servidor y la app se queda en blanco sin ningún error visible. Vite emite
+// este evento en ese caso — la recuperación es recargar, así se trae el HTML
+// y los assets ya actualizados.
+window.addEventListener('vite:preloadError', () => {
+    window.location.reload();
+});
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),

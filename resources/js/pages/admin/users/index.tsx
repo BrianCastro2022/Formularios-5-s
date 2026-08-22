@@ -137,7 +137,7 @@ export default function UsersIndex({ users, areas, filters }: UsersIndexProps) {
                                     <TableCell>
                                         <Badge variant={user.activo ? 'default' : 'secondary'}>{user.activo ? 'Activo' : 'Inactivo'}</Badge>
                                     </TableCell>
-                                    <TableCell className="flex justify-end gap-2">
+                                    <TableCell className="flex flex-wrap justify-end gap-2">
                                         <Button variant="outline" size="sm" asChild>
                                             <Link href={route('admin.users.edit', user.id)}>Editar</Link>
                                         </Button>
